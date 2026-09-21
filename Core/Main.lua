@@ -3,21 +3,22 @@
     Core/Main.lua
 
     Главная точка запуска.
-    Core отвечает за запуск интерфейса и регистрацию модулей.
 ]]
 
 local PenyaHubZ = {}
 
-PenyaHubZ.Version = "0.1.0"
 PenyaHubZ.Name = "PenyaHubZ"
+PenyaHubZ.Version = "0.1.0"
 
--- Хранилище подключённых модулей
 PenyaHubZ.Modules = {}
 
--- Регистрация модуля
+--------------------------------------------------
+-- Module System
+--------------------------------------------------
+
 function PenyaHubZ:RegisterModule(name, module)
     if type(name) ~= "string" then
-        warn("[PenyaHubZ] Module name must be a string.")
+        warn("[PenyaHubZ] Invalid module name.")
         return false
     end
 
@@ -31,12 +32,10 @@ function PenyaHubZ:RegisterModule(name, module)
     return true
 end
 
--- Получение модуля
 function PenyaHubZ:GetModule(name)
     return self.Modules[name]
 end
 
--- Запуск модуля
 function PenyaHubZ:StartModule(name)
     local module = self:GetModule(name)
 
@@ -46,10 +45,18 @@ function PenyaHubZ:StartModule(name)
     end
 
     if type(module.Init) == "function" then
-        local success, result = pcall(module.Init, module, self)
+        local success, result = pcall(function()
+            module:Init(self)
+        end)
 
         if not success then
-            warn("[PenyaHubZ] Failed to initialize module '" .. name .. "': " .. tostring(result))
+            warn(
+                "[PenyaHubZ] Failed to initialize '" ..
+                name ..
+                "': " ..
+                tostring(result)
+            )
+
             return false
         end
     end
@@ -57,7 +64,6 @@ function PenyaHubZ:StartModule(name)
     return true
 end
 
--- Остановка модуля
 function PenyaHubZ:StopModule(name)
     local module = self:GetModule(name)
 
@@ -66,10 +72,18 @@ function PenyaHubZ:StopModule(name)
     end
 
     if type(module.Destroy) == "function" then
-        local success, result = pcall(module.Destroy, module)
+        local success, result = pcall(function()
+            module:Destroy()
+        end)
 
         if not success then
-            warn("[PenyaHubZ] Failed to destroy module '" .. name .. "': " .. tostring(result))
+            warn(
+                "[PenyaHubZ] Failed to destroy '" ..
+                name ..
+                "': " ..
+                tostring(result)
+            )
+
             return false
         end
     end
@@ -77,16 +91,68 @@ function PenyaHubZ:StopModule(name)
     return true
 end
 
--- Информация о хабе
+--------------------------------------------------
+-- Load Core UI
+--------------------------------------------------
+
+local UI = nil
+
+local function loadUI()
+    local success, result = pcall(function()
+        return require(script.Parent.UI)
+    end)
+
+    if not success then
+        warn("[PenyaHubZ] Failed to load UI: " .. tostring(result))
+        return false
+    end
+
+    UI = result
+
+    return true
+end
+
+--------------------------------------------------
+-- Start
+--------------------------------------------------
+
+function PenyaHubZ:Start()
+    print("[PenyaHubZ] Starting...")
+    print("[PenyaHubZ] Version: " .. self.Version)
+
+    if not loadUI() then
+        warn("[PenyaHubZ] Startup aborted.")
+        return false
+    end
+
+    UI:Create()
+
+    print("[PenyaHubZ] UI loaded.")
+    print("[PenyaHubZ] Ready.")
+
+    return true
+end
+
+--------------------------------------------------
+-- Public API
+--------------------------------------------------
+
 function PenyaHubZ:GetInfo()
+    local count = 0
+
+    for _ in pairs(self.Modules) do
+        count += 1
+    end
+
     return {
         Name = self.Name,
         Version = self.Version,
-        ModuleCount = #self.Modules
+        ModuleCount = count
     }
 end
 
-print("[PenyaHubZ] Core loaded.")
-print("[PenyaHubZ] Version: " .. PenyaHubZ.Version)
+--------------------------------------------------
+-- Return
+--------------------------------------------------
 
 return PenyaHubZ
