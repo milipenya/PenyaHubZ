@@ -19,6 +19,7 @@ PenyaHubZ.Modules = {}
 local Theme
 local Animations
 local Notifications
+local Toggle
 local UI
 local ModuleLoader
 
@@ -78,6 +79,11 @@ local function loadCore()
         return false
     end
 
+    Toggle = loadDependency(coreFolder, "Toggle")
+    if not Toggle then
+        return false
+    end
+
     ModuleLoader = loadDependency(coreFolder, "ModuleLoader")
     if not ModuleLoader then
         return false
@@ -96,6 +102,7 @@ end
 --------------------------------------------------
 
 function PenyaHubZ:RegisterModule(name, module)
+
     if type(name) ~= "string" then
         warn("[PenyaHubZ] Invalid module name.")
         return false
@@ -138,11 +145,15 @@ end
 --------------------------------------------------
 
 function PenyaHubZ:StartModule(name)
+
     if not ModuleLoader then
         return false
     end
 
-    return ModuleLoader:Start(name, self:GetContext())
+    return ModuleLoader:Start(
+        name,
+        self:GetContext()
+    )
 end
 
 --------------------------------------------------
@@ -150,6 +161,7 @@ end
 --------------------------------------------------
 
 function PenyaHubZ:StopModule(name)
+
     if not ModuleLoader then
         return false
     end
@@ -162,8 +174,10 @@ end
 --------------------------------------------------
 
 local function loadModules(self)
+
     local rootFolder = script.Parent.Parent
-    local modulesFolder = rootFolder:FindFirstChild("Modules")
+    local modulesFolder =
+        rootFolder:FindFirstChild("Modules")
 
     if not modulesFolder then
         warn("[PenyaHubZ] Modules folder not found.")
@@ -180,23 +194,28 @@ local function loadModules(self)
     }
 
     for _, folderName in ipairs(moduleFolders) do
-        local folder = modulesFolder:FindFirstChild(folderName)
+
+        local folder =
+            modulesFolder:FindFirstChild(folderName)
 
         if not folder then
             warn(
                 "[PenyaHubZ] Module folder not found: " ..
                 folderName
             )
+
             continue
         end
 
-        local moduleScript = folder:FindFirstChild("AllFunctions")
+        local moduleScript =
+            folder:FindFirstChild("AllFunctions")
 
         if not moduleScript then
             warn(
                 "[PenyaHubZ] AllFunctions not found in: " ..
                 folderName
             )
+
             continue
         end
 
@@ -211,10 +230,14 @@ local function loadModules(self)
                 "': " ..
                 tostring(module)
             )
+
             continue
         end
 
-        self:RegisterModule(folderName, module)
+        self:RegisterModule(
+            folderName,
+            module
+        )
     end
 
     return true
@@ -225,12 +248,14 @@ end
 --------------------------------------------------
 
 function PenyaHubZ:GetContext()
+
     return {
         Hub = self,
 
         Theme = Theme,
         Animations = Animations,
         Notifications = Notifications,
+        Toggle = Toggle,
 
         ModuleLoader = ModuleLoader
     }
@@ -255,6 +280,15 @@ function PenyaHubZ:Start()
     end
 
     --------------------------------------------------
+    -- Initialize Toggle
+    --------------------------------------------------
+
+    if not Toggle:Init(self:GetContext()) then
+        warn("[PenyaHubZ] Toggle initialization failed.")
+        return false
+    end
+
+    --------------------------------------------------
     -- Notifications
     --------------------------------------------------
 
@@ -273,7 +307,9 @@ function PenyaHubZ:Start()
     -- Start Modules
     --------------------------------------------------
 
-    ModuleLoader:StartAll(self:GetContext())
+    ModuleLoader:StartAll(
+        self:GetContext()
+    )
 
     --------------------------------------------------
     -- UI
@@ -304,7 +340,11 @@ function PenyaHubZ:GetInfo()
     return {
         Name = self.Name,
         Version = self.Version,
-        ModuleCount = ModuleLoader and ModuleLoader:GetCount() or 0
+
+        ModuleCount =
+            ModuleLoader
+            and ModuleLoader:GetCount()
+            or 0
     }
 end
 
