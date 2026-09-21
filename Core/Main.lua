@@ -13,7 +13,80 @@ PenyaHubZ.Version = "0.1.0"
 PenyaHubZ.Modules = {}
 
 --------------------------------------------------
--- Module System
+-- Dependencies
+--------------------------------------------------
+
+local Theme
+local Animations
+local Notifications
+local UI
+local ModuleLoader
+
+--------------------------------------------------
+-- Load Dependency
+--------------------------------------------------
+
+local function loadDependency(parent, name)
+    local success, result = pcall(function()
+        return require(parent:WaitForChild(name))
+    end)
+
+    if not success then
+        warn(
+            "[PenyaHubZ] Failed to load '" ..
+            name ..
+            "': " ..
+            tostring(result)
+        )
+
+        return nil
+    end
+
+    return result
+end
+
+--------------------------------------------------
+-- Load Core
+--------------------------------------------------
+
+local function loadCore()
+    local coreFolder = script.Parent
+
+    Theme = loadDependency(coreFolder, "Theme")
+
+    if not Theme then
+        return false
+    end
+
+    Animations = loadDependency(coreFolder, "Animations")
+
+    if not Animations then
+        return false
+    end
+
+    Notifications = loadDependency(coreFolder, "Notifications")
+
+    if not Notifications then
+        return false
+    end
+
+    ModuleLoader = loadDependency(coreFolder, "ModuleLoader")
+
+    if not ModuleLoader then
+        return false
+    end
+
+    UI = loadDependency(coreFolder, "UI")
+
+    if not UI then
+        return false
+    end
+
+    return true
+end
+
+--------------------------------------------------
+-- Register Module
 --------------------------------------------------
 
 function PenyaHubZ:RegisterModule(name, module)
@@ -23,93 +96,70 @@ function PenyaHubZ:RegisterModule(name, module)
     end
 
     if type(module) ~= "table" then
-        warn("[PenyaHubZ] Module '" .. name .. "' must return a table.")
+        warn(
+            "[PenyaHubZ] Module '" ..
+            name ..
+            "' must return a table."
+        )
+
         return false
     end
 
     self.Modules[name] = module
 
+    if ModuleLoader then
+        ModuleLoader:Register(name, module)
+    end
+
     return true
 end
+
+--------------------------------------------------
+-- Get Module
+--------------------------------------------------
 
 function PenyaHubZ:GetModule(name)
     return self.Modules[name]
 end
 
-function PenyaHubZ:StartModule(name)
-    local module = self:GetModule(name)
+--------------------------------------------------
+-- Start Module
+--------------------------------------------------
 
-    if not module then
-        warn("[PenyaHubZ] Module not found: " .. tostring(name))
+function PenyaHubZ:StartModule(name)
+    if not ModuleLoader then
         return false
     end
 
-    if type(module.Init) == "function" then
-        local success, result = pcall(function()
-            module:Init(self)
-        end)
-
-        if not success then
-            warn(
-                "[PenyaHubZ] Failed to initialize '" ..
-                name ..
-                "': " ..
-                tostring(result)
-            )
-
-            return false
-        end
-    end
-
-    return true
+    return ModuleLoader:Start(name, self)
 end
+
+--------------------------------------------------
+-- Stop Module
+--------------------------------------------------
 
 function PenyaHubZ:StopModule(name)
-    local module = self:GetModule(name)
-
-    if not module then
+    if not ModuleLoader then
         return false
     end
 
-    if type(module.Destroy) == "function" then
-        local success, result = pcall(function()
-            module:Destroy()
-        end)
-
-        if not success then
-            warn(
-                "[PenyaHubZ] Failed to destroy '" ..
-                name ..
-                "': " ..
-                tostring(result)
-            )
-
-            return false
-        end
-    end
-
-    return true
+    return ModuleLoader:Stop(name)
 end
 
 --------------------------------------------------
--- Load Core UI
+-- Context
 --------------------------------------------------
 
-local UI = nil
+function PenyaHubZ:GetContext()
+    return {
+        Hub = self,
 
-local function loadUI()
-    local success, result = pcall(function()
-        return require(script.Parent.UI)
-    end)
+        Theme = Theme,
+        Animations = Animations,
+        Notifications = Notifications,
 
-    if not success then
-        warn("[PenyaHubZ] Failed to load UI: " .. tostring(result))
-        return false
-    end
-
-    UI = result
-
-    return true
+        ModuleLoader = ModuleLoader
+    }
 end
 
 --------------------------------------------------
@@ -117,15 +167,35 @@ end
 --------------------------------------------------
 
 function PenyaHubZ:Start()
+
     print("[PenyaHubZ] Starting...")
     print("[PenyaHubZ] Version: " .. self.Version)
 
-    if not loadUI() then
-        warn("[PenyaHubZ] Startup aborted.")
+    --------------------------------------------------
+    -- Core
+    --------------------------------------------------
+
+    if not loadCore() then
+        warn("[PenyaHubZ] Core loading failed.")
         return false
     end
 
-    UI:Create()
+    --------------------------------------------------
+    -- Notifications
+    --------------------------------------------------
+
+    Notifications:Init()
+
+    --------------------------------------------------
+    -- UI
+    --------------------------------------------------
+
+    local context = self:GetContext()
+
+    if not UI:Init(context) then
+        warn("[PenyaHubZ] UI initialization failed.")
+        return false
+    end
 
     print("[PenyaHubZ] UI loaded.")
     print("[PenyaHubZ] Ready.")
@@ -134,10 +204,11 @@ function PenyaHubZ:Start()
 end
 
 --------------------------------------------------
--- Public API
+-- Info
 --------------------------------------------------
 
 function PenyaHubZ:GetInfo()
+
     local count = 0
 
     for _ in pairs(self.Modules) do
