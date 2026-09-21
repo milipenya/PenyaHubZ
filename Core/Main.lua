@@ -28,6 +28,7 @@ local ModuleLoader
 --------------------------------------------------
 
 local function loadDependency(parent, name)
+
     local object = parent:FindFirstChild(name)
 
     if not object then
@@ -62,34 +63,65 @@ end
 --------------------------------------------------
 
 local function loadCore()
+
     local coreFolder = script.Parent
 
-    Theme = loadDependency(coreFolder, "Theme")
+    Theme =
+        loadDependency(
+            coreFolder,
+            "Theme"
+        )
+
     if not Theme then
         return false
     end
 
-    Animations = loadDependency(coreFolder, "Animations")
+    Animations =
+        loadDependency(
+            coreFolder,
+            "Animations"
+        )
+
     if not Animations then
         return false
     end
 
-    Notifications = loadDependency(coreFolder, "Notifications")
+    Notifications =
+        loadDependency(
+            coreFolder,
+            "Notifications"
+        )
+
     if not Notifications then
         return false
     end
 
-    Toggle = loadDependency(coreFolder, "Toggle")
+    Toggle =
+        loadDependency(
+            coreFolder,
+            "Toggle"
+        )
+
     if not Toggle then
         return false
     end
 
-    ModuleLoader = loadDependency(coreFolder, "ModuleLoader")
+    ModuleLoader =
+        loadDependency(
+            coreFolder,
+            "ModuleLoader"
+        )
+
     if not ModuleLoader then
         return false
     end
 
-    UI = loadDependency(coreFolder, "UI")
+    UI =
+        loadDependency(
+            coreFolder,
+            "UI"
+        )
+
     if not UI then
         return false
     end
@@ -104,11 +136,16 @@ end
 function PenyaHubZ:RegisterModule(name, module)
 
     if type(name) ~= "string" then
-        warn("[PenyaHubZ] Invalid module name.")
+
+        warn(
+            "[PenyaHubZ] Invalid module name."
+        )
+
         return false
     end
 
     if type(module) ~= "table" then
+
         warn(
             "[PenyaHubZ] Module '" ..
             name ..
@@ -119,6 +156,7 @@ function PenyaHubZ:RegisterModule(name, module)
     end
 
     if self.Modules[name] then
+
         warn(
             "[PenyaHubZ] Module already registered: " ..
             name
@@ -129,7 +167,10 @@ function PenyaHubZ:RegisterModule(name, module)
 
     self.Modules[name] = module
 
-    return ModuleLoader:Register(name, module)
+    return ModuleLoader:Register(
+        name,
+        module
+    )
 end
 
 --------------------------------------------------
@@ -137,6 +178,7 @@ end
 --------------------------------------------------
 
 function PenyaHubZ:GetModule(name)
+
     return self.Modules[name]
 end
 
@@ -175,12 +217,18 @@ end
 
 local function loadModules(self)
 
-    local rootFolder = script.Parent.Parent
+    local rootFolder =
+        script.Parent.Parent
+
     local modulesFolder =
         rootFolder:FindFirstChild("Modules")
 
     if not modulesFolder then
-        warn("[PenyaHubZ] Modules folder not found.")
+
+        warn(
+            "[PenyaHubZ] Modules folder not found."
+        )
+
         return false
     end
 
@@ -193,12 +241,17 @@ local function loadModules(self)
         "Settings"
     }
 
-    for _, folderName in ipairs(moduleFolders) do
+    for _, folderName in ipairs(
+        moduleFolders
+    ) do
 
         local folder =
-            modulesFolder:FindFirstChild(folderName)
+            modulesFolder:FindFirstChild(
+                folderName
+            )
 
         if not folder then
+
             warn(
                 "[PenyaHubZ] Module folder not found: " ..
                 folderName
@@ -208,9 +261,12 @@ local function loadModules(self)
         end
 
         local moduleScript =
-            folder:FindFirstChild("AllFunctions")
+            folder:FindFirstChild(
+                "AllFunctions"
+            )
 
         if not moduleScript then
+
             warn(
                 "[PenyaHubZ] AllFunctions not found in: " ..
                 folderName
@@ -219,11 +275,13 @@ local function loadModules(self)
             continue
         end
 
-        local success, module = pcall(function()
-            return require(moduleScript)
-        end)
+        local success, module =
+            pcall(function()
+                return require(moduleScript)
+            end)
 
         if not success then
+
             warn(
                 "[PenyaHubZ] Failed to load module '" ..
                 folderName ..
@@ -267,24 +325,40 @@ end
 
 function PenyaHubZ:Start()
 
-    print("[PenyaHubZ] Starting...")
-    print("[PenyaHubZ] Version: " .. self.Version)
+    print(
+        "[PenyaHubZ] Starting..."
+    )
+
+    print(
+        "[PenyaHubZ] Version: " ..
+        self.Version
+    )
 
     --------------------------------------------------
     -- Core
     --------------------------------------------------
 
     if not loadCore() then
-        warn("[PenyaHubZ] Core loading failed.")
+
+        warn(
+            "[PenyaHubZ] Core loading failed."
+        )
+
         return false
     end
 
     --------------------------------------------------
-    -- Initialize Toggle
+    -- Toggle
     --------------------------------------------------
 
-    if not Toggle:Init(self:GetContext()) then
-        warn("[PenyaHubZ] Toggle initialization failed.")
+    if not Toggle:Init(
+        self:GetContext()
+    ) then
+
+        warn(
+            "[PenyaHubZ] Toggle initialization failed."
+        )
+
         return false
     end
 
@@ -292,14 +366,27 @@ function PenyaHubZ:Start()
     -- Notifications
     --------------------------------------------------
 
-    Notifications:Init()
+    if not Notifications:Init(
+        self:GetContext()
+    ) then
+
+        warn(
+            "[PenyaHubZ] Notifications initialization failed."
+        )
+
+        return false
+    end
 
     --------------------------------------------------
     -- Modules
     --------------------------------------------------
 
     if not loadModules(self) then
-        warn("[PenyaHubZ] Module loading failed.")
+
+        warn(
+            "[PenyaHubZ] Module loading failed."
+        )
+
         return false
     end
 
@@ -315,18 +402,35 @@ function PenyaHubZ:Start()
     -- UI
     --------------------------------------------------
 
-    if not UI:Init(self:GetContext()) then
-        warn("[PenyaHubZ] UI initialization failed.")
+    if not UI:Init(
+        self:GetContext()
+    ) then
+
+        warn(
+            "[PenyaHubZ] UI initialization failed."
+        )
+
         return false
     end
 
+    --------------------------------------------------
+    -- Ready
+    --------------------------------------------------
+
     print(
         "[PenyaHubZ] Modules loaded: " ..
-        tostring(ModuleLoader:GetCount())
+        tostring(
+            ModuleLoader:GetCount()
+        )
     )
 
-    print("[PenyaHubZ] UI loaded.")
-    print("[PenyaHubZ] Ready.")
+    print(
+        "[PenyaHubZ] UI loaded."
+    )
+
+    print(
+        "[PenyaHubZ] Ready."
+    )
 
     return true
 end
@@ -339,6 +443,7 @@ function PenyaHubZ:GetInfo()
 
     return {
         Name = self.Name,
+
         Version = self.Version,
 
         ModuleCount =
