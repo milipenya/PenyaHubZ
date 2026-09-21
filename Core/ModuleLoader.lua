@@ -15,18 +15,28 @@ ModuleLoader.Started = {}
 --------------------------------------------------
 
 function ModuleLoader:Register(name, module)
+
     if type(name) ~= "string" then
         warn("[PenyaHubZ] Module name must be a string.")
         return false
     end
 
     if type(module) ~= "table" then
-        warn("[PenyaHubZ] Module '" .. name .. "' must return a table.")
+        warn(
+            "[PenyaHubZ] Module '" ..
+            name ..
+            "' must return a table."
+        )
+
         return false
     end
 
     if self.Modules[name] then
-        warn("[PenyaHubZ] Module already registered: " .. name)
+        warn(
+            "[PenyaHubZ] Module already registered: " ..
+            name
+        )
+
         return false
     end
 
@@ -48,10 +58,15 @@ end
 --------------------------------------------------
 
 function ModuleLoader:Start(name, context)
+
     local module = self:Get(name)
 
     if not module then
-        warn("[PenyaHubZ] Module not found: " .. tostring(name))
+        warn(
+            "[PenyaHubZ] Module not found: " ..
+            tostring(name)
+        )
+
         return false
     end
 
@@ -60,8 +75,9 @@ function ModuleLoader:Start(name, context)
     end
 
     if type(module.Init) == "function" then
+
         local success, result = pcall(function()
-            module:Init(context)
+            return module:Init(context)
         end)
 
         if not success then
@@ -74,9 +90,24 @@ function ModuleLoader:Start(name, context)
 
             return false
         end
+
+        if result == false then
+            warn(
+                "[PenyaHubZ] Module '" ..
+                name ..
+                "' rejected initialization."
+            )
+
+            return false
+        end
     end
 
     self.Started[name] = true
+
+    print(
+        "[PenyaHubZ] Module started: " ..
+        name
+    )
 
     return true
 end
@@ -86,6 +117,7 @@ end
 --------------------------------------------------
 
 function ModuleLoader:Stop(name)
+
     local module = self:Get(name)
 
     if not module then
@@ -97,8 +129,9 @@ function ModuleLoader:Stop(name)
     end
 
     if type(module.Destroy) == "function" then
+
         local success, result = pcall(function()
-            module:Destroy()
+            return module:Destroy()
         end)
 
         if not success then
@@ -115,6 +148,11 @@ function ModuleLoader:Stop(name)
 
     self.Started[name] = nil
 
+    print(
+        "[PenyaHubZ] Module stopped: " ..
+        name
+    )
+
     return true
 end
 
@@ -123,6 +161,7 @@ end
 --------------------------------------------------
 
 function ModuleLoader:StartAll(context)
+
     for name in pairs(self.Modules) do
         self:Start(name, context)
     end
@@ -133,16 +172,18 @@ end
 --------------------------------------------------
 
 function ModuleLoader:StopAll()
+
     for name in pairs(self.Modules) do
         self:Stop(name)
     end
 end
 
 --------------------------------------------------
--- Information
+-- Count
 --------------------------------------------------
 
 function ModuleLoader:GetCount()
+
     local count = 0
 
     for _ in pairs(self.Modules) do
@@ -150,6 +191,14 @@ function ModuleLoader:GetCount()
     end
 
     return count
+end
+
+--------------------------------------------------
+-- Is Started
+--------------------------------------------------
+
+function ModuleLoader:IsStarted(name)
+    return self.Started[name] == true
 end
 
 return ModuleLoader
