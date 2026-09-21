@@ -2,28 +2,18 @@
     PenyaHubZ
     Core/UI.lua
 
-    Основной интерфейс PenyaHubZ.
+    Основной пользовательский интерфейс.
 ]]
 
 local UI = {}
 
 local Players = game:GetService("Players")
 
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-
 local Theme
 local Animations
+local Toggle
 
-local screenGui
-local mainWindow
-local openButton
-local sidebar
-local content
-
-local opened = false
-
-local GUI_NAME = "PenyaHubZ"
+local Player = Players.LocalPlayer
 
 --------------------------------------------------
 -- Tabs
@@ -59,467 +49,271 @@ local MINI_GAME_NAMES = {
 }
 
 --------------------------------------------------
+-- State
+--------------------------------------------------
+
+UI.ToggleStates = {}
+
+--------------------------------------------------
 -- Helpers
 --------------------------------------------------
 
-local function create(className, properties, parent)
-    local object = Instance.new(className)
+local function createCorner(parent, radius)
 
-    for property, value in pairs(properties or {}) do
-        object[property] = value
-    end
-
-    object.Parent = parent
-
-    return object
-end
-
-local function addCorner(object, radius)
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, radius)
-    corner.Parent = object
+
+    corner.CornerRadius =
+        UDim.new(0, radius)
+
+    corner.Parent = parent
 
     return corner
 end
 
-local function addStroke(object)
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Theme.Colors.PurpleDark
-    stroke.Thickness = 1
-    stroke.Transparency = 0.25
-    stroke.Parent = object
+local function createLabel(parent, text, size, position)
 
-    return stroke
+    local label = Instance.new("TextLabel")
+
+    label.Size = size
+    label.Position = position
+
+    label.BackgroundTransparency = 1
+
+    label.Text = text
+    label.TextColor3 = Theme.Colors.Text
+
+    label.Font = Theme.Fonts.Medium
+    label.TextSize = 14
+
+    label.TextXAlignment =
+        Enum.TextXAlignment.Left
+
+    label.TextYAlignment =
+        Enum.TextYAlignment.Center
+
+    label.Parent = parent
+
+    return label
 end
 
 --------------------------------------------------
--- Clear Content
+-- Mini Game Button
 --------------------------------------------------
 
-local function clearContent()
-    if not content then
-        return
-    end
+local function createFunctionButton(
+    parent,
+    name,
+    order
+)
 
-    for _, child in ipairs(content:GetChildren()) do
-        child:Destroy()
-    end
-end
+    local buttonFrame = Instance.new("Frame")
 
---------------------------------------------------
--- Create Function Button
---------------------------------------------------
+    buttonFrame.Name = name
+    buttonFrame.Size =
+        UDim2.new(1, -12, 0, 48)
 
-local function createFunctionButton(parent, name, order)
+    buttonFrame.BackgroundColor3 =
+        Theme.Colors.Panel
 
-    local button = create("TextButton", {
-        Name = name:gsub(" ", ""),
-        LayoutOrder = order,
+    buttonFrame.BorderSizePixel = 0
 
-        Size = UDim2.new(1, 0, 0, 44),
+    buttonFrame.LayoutOrder = order
 
-        BackgroundColor3 = Theme.Colors.PanelLight,
-        BorderSizePixel = 0,
+    buttonFrame.Parent = parent
 
-        Font = Theme.Fonts.Semibold,
-        Text = name,
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 12,
-
-        AutoButtonColor = false
-    }, parent)
-
-    addCorner(
-        button,
+    createCorner(
+        buttonFrame,
         Theme.Sizes.SmallCornerRadius
     )
-
-    addStroke(button)
 
     --------------------------------------------------
     -- Hover
     --------------------------------------------------
 
-    button.MouseEnter:Connect(function()
-        Animations:Color(
-            button,
-            Theme.Colors.PurpleDark,
-            Animations.Duration.Fast
-        )
-    end)
+    local hoverButton = Instance.new("TextButton")
 
-    button.MouseLeave:Connect(function()
+    hoverButton.Name = "HoverButton"
+
+    hoverButton.Size =
+        UDim2.fromScale(1, 1)
+
+    hoverButton.BackgroundTransparency = 1
+
+    hoverButton.Text = ""
+
+    hoverButton.AutoButtonColor = false
+
+    hoverButton.ZIndex = 1
+
+    hoverButton.Parent = buttonFrame
+
+    --------------------------------------------------
+    -- Function Name
+    --------------------------------------------------
+
+    local label = createLabel(
+        buttonFrame,
+        name,
+        UDim2.new(1, -80, 1, 0),
+        UDim2.fromOffset(14, 0)
+    )
+
+    label.ZIndex = 2
+
+    --------------------------------------------------
+    -- Toggle
+    --------------------------------------------------
+
+    local toggle = Toggle:Create(
+        buttonFrame,
+        UDim2.new(1, -66, 0.5, -13),
+        false,
+        function(state)
+
+            UI.ToggleStates[name] = state
+
+            print(
+                "[PenyaHubZ] " ..
+                name ..
+                " = " ..
+                tostring(state)
+            )
+
+        end
+    )
+
+    local toggleGui = toggle:GetGui()
+
+    toggleGui.ZIndex = 3
+
+    --------------------------------------------------
+    -- Hover Animation
+    --------------------------------------------------
+
+    hoverButton.MouseEnter:Connect(function()
+
         Animations:Color(
-            button,
+            buttonFrame,
             Theme.Colors.PanelLight,
             Animations.Duration.Fast
         )
+
+    end)
+
+    hoverButton.MouseLeave:Connect(function()
+
+        Animations:Color(
+            buttonFrame,
+            Theme.Colors.Panel,
+            Animations.Duration.Fast
+        )
+
     end)
 
     --------------------------------------------------
     -- Click
     --------------------------------------------------
 
-    button.MouseButton1Click:Connect(function()
+    hoverButton.MouseButton1Click:Connect(function()
 
-        print(
-            "[PenyaHubZ] Function selected: " ..
-            name
-        )
+        toggle:Toggle()
 
     end)
+
+    return buttonFrame
+end
+
+--------------------------------------------------
+-- Tab Button
+--------------------------------------------------
+
+local function createTabButton(
+    parent,
+    name,
+    order
+)
+
+    local button = Instance.new("TextButton")
+
+    button.Name = name
+    button.Size =
+        UDim2.new(1, -20, 0, 42)
+
+    button.Position =
+        UDim2.fromOffset(10, 0)
+
+    button.BackgroundColor3 =
+        Theme.Colors.Panel
+
+    button.BorderSizePixel = 0
+
+    button.Text = name
+
+    button.TextColor3 =
+        Theme.Colors.TextDim
+
+    button.Font =
+        Theme.Fonts.Semibold
+
+    button.TextSize = 12
+
+    button.TextXAlignment =
+        Enum.TextXAlignment.Left
+
+    button.AutoButtonColor = false
+
+    button.LayoutOrder = order
+
+    button.Parent = parent
+
+    createCorner(
+        button,
+        Theme.Sizes.SmallCornerRadius
+    )
+
+    local padding =
+        Instance.new("UIPadding")
+
+    padding.PaddingLeft =
+        UDim.new(0, 14)
+
+    padding.Parent = button
 
     return button
 end
 
 --------------------------------------------------
--- Mini Games Page
+-- UI Init
 --------------------------------------------------
 
-local function createMiniGamesPage()
+function UI:Init(context)
 
-    clearContent()
-
-    local title = create("TextLabel", {
-        Name = "PageTitle",
-
-        BackgroundTransparency = 1,
-
-        Position = UDim2.fromOffset(15, 12),
-        Size = UDim2.new(1, -30, 0, 32),
-
-        Font = Theme.Fonts.Bold,
-        Text = "MINI GAMES",
-
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 21,
-
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, content)
-
-    local description = create("TextLabel", {
-        Name = "PageDescription",
-
-        BackgroundTransparency = 1,
-
-        Position = UDim2.fromOffset(15, 43),
-        Size = UDim2.new(1, -30, 0, 25),
-
-        Font = Theme.Fonts.Main,
-        Text = "Select a mini game function",
-
-        TextColor3 = Theme.Colors.TextDim,
-        TextSize = 12,
-
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, content)
-
-    --------------------------------------------------
-    -- Scroll
-    --------------------------------------------------
-
-    local scroll = create("ScrollingFrame", {
-        Name = "FunctionList",
-
-        Position = UDim2.fromOffset(15, 75),
-        Size = UDim2.new(1, -30, 1, -90),
-
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-
-        ScrollBarThickness = 3,
-        ScrollBarImageColor3 = Theme.Colors.PurpleDark,
-
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-
-        ScrollingDirection = Enum.ScrollingDirection.Y
-    }, content)
-
-    local padding = Instance.new("UIPadding")
-    padding.PaddingBottom = UDim.new(0, 5)
-    padding.Parent = scroll
-
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 7)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = scroll
-
-    --------------------------------------------------
-    -- Buttons
-    --------------------------------------------------
-
-    for index, gameName in ipairs(MINI_GAME_NAMES) do
-        createFunctionButton(
-            scroll,
-            gameName,
-            index
-        )
-    end
-end
-
---------------------------------------------------
--- Default Page
---------------------------------------------------
-
-local function createDefaultPage(tabName)
-
-    clearContent()
-
-    create("TextLabel", {
-        Name = "PageTitle",
-
-        BackgroundTransparency = 1,
-
-        Position = UDim2.fromOffset(15, 15),
-        Size = UDim2.new(1, -30, 0, 40),
-
-        Font = Theme.Fonts.Bold,
-        Text = tabName,
-
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 22,
-
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, content)
-
-    create("TextLabel", {
-        Name = "PageDescription",
-
-        BackgroundTransparency = 1,
-
-        Position = UDim2.fromOffset(15, 55),
-        Size = UDim2.new(1, -30, 0, 30),
-
-        Font = Theme.Fonts.Main,
-        Text = "PenyaHubZ • " .. tabName,
-
-        TextColor3 = Theme.Colors.TextDim,
-        TextSize = 13,
-
-        TextXAlignment = Enum.TextXAlignment.Left
-    }, content)
-end
-
---------------------------------------------------
--- Page Router
---------------------------------------------------
-
-local function setContent(tabName)
-
-    if tabName == "MINI GAMES" then
-        createMiniGamesPage()
-        return
+    if not context then
+        warn("[PenyaHubZ] UI context is missing.")
+        return false
     end
 
-    createDefaultPage(tabName)
-end
+    Theme = context.Theme
+    Animations = context.Animations
+    Toggle = context.Toggle
 
---------------------------------------------------
--- Tabs
---------------------------------------------------
+    if not Theme or not Animations or not Toggle then
 
-local function createTabs()
-
-    for index, tabName in ipairs(TAB_NAMES) do
-
-        local button = create("TextButton", {
-            Name = tabName:gsub(" ", ""),
-
-            BackgroundColor3 = Theme.Colors.PanelLight,
-            BorderSizePixel = 0,
-
-            Size = UDim2.new(1, -16, 0, 42),
-
-            Position = UDim2.fromOffset(
-                8,
-                8 + ((index - 1) * 50)
-            ),
-
-            Font = Theme.Fonts.Semibold,
-            Text = tabName,
-
-            TextColor3 = Theme.Colors.TextDim,
-            TextSize = 12,
-
-            AutoButtonColor = false
-        }, sidebar)
-
-        addCorner(
-            button,
-            Theme.Sizes.SmallCornerRadius
+        warn(
+            "[PenyaHubZ] UI dependencies are missing."
         )
 
-        button.MouseEnter:Connect(function()
-
-            if button:GetAttribute("Selected") ~= true then
-
-                Animations:Color(
-                    button,
-                    Theme.Colors.Panel,
-                    Animations.Duration.Fast
-                )
-
-            end
-
-        end)
-
-        button.MouseLeave:Connect(function()
-
-            if button:GetAttribute("Selected") ~= true then
-
-                Animations:Color(
-                    button,
-                    Theme.Colors.PanelLight,
-                    Animations.Duration.Fast
-                )
-
-            end
-
-        end)
-
-        button.MouseButton1Click:Connect(function()
-
-            for _, other in ipairs(sidebar:GetChildren()) do
-
-                if other:IsA("TextButton") then
-
-                    other:SetAttribute(
-                        "Selected",
-                        false
-                    )
-
-                    Animations:Color(
-                        other,
-                        Theme.Colors.PanelLight,
-                        Animations.Duration.Fast
-                    )
-
-                    Animations:TextColor(
-                        other,
-                        Theme.Colors.TextDim,
-                        Animations.Duration.Fast
-                    )
-
-                end
-
-            end
-
-            button:SetAttribute(
-                "Selected",
-                true
-            )
-
-            Animations:Color(
-                button,
-                Theme.Colors.PurpleDark,
-                Animations.Duration.Fast
-            )
-
-            Animations:TextColor(
-                button,
-                Theme.Colors.Text,
-                Animations.Duration.Fast
-            )
-
-            setContent(tabName)
-
-        end)
-
-        if index == 1 then
-
-            button:SetAttribute(
-                "Selected",
-                true
-            )
-
-            button.BackgroundColor3 =
-                Theme.Colors.PurpleDark
-
-            button.TextColor3 =
-                Theme.Colors.Text
-
-        end
-
-    end
-end
-
---------------------------------------------------
--- Open
---------------------------------------------------
-
-function UI:Open()
-
-    if opened or not mainWindow then
-        return
+        return false
     end
 
-    opened = true
+    --------------------------------------------------
+    -- Existing GUI
+    --------------------------------------------------
 
-    mainWindow.Visible = true
-
-    Animations:OpenWindow(
-        mainWindow,
-        UDim2.fromOffset(
-            Theme.Sizes.MainWidth,
-            Theme.Sizes.MainHeight
-        )
-    )
-
-end
-
---------------------------------------------------
--- Close
---------------------------------------------------
-
-function UI:Close()
-
-    if not opened or not mainWindow then
-        return
-    end
-
-    opened = false
-
-    local tween =
-        Animations:CloseWindow(mainWindow)
-
-    if tween then
-
-        tween.Completed:Once(function()
-
-            if not opened then
-                mainWindow.Visible = false
-            end
-
-        end)
-
-    end
-
-end
-
---------------------------------------------------
--- Toggle
---------------------------------------------------
-
-function UI:Toggle()
-
-    if opened then
-        self:Close()
-    else
-        self:Open()
-    end
-
-end
-
---------------------------------------------------
--- Create
---------------------------------------------------
-
-function UI:Create()
+    local playerGui = Player:WaitForChild("PlayerGui")
 
     local oldGui =
-        PlayerGui:FindFirstChild(GUI_NAME)
+        playerGui:FindFirstChild("PenyaHubZ")
 
     if oldGui then
         oldGui:Destroy()
@@ -529,225 +323,481 @@ function UI:Create()
     -- ScreenGui
     --------------------------------------------------
 
-    screenGui = create("ScreenGui", {
-        Name = GUI_NAME,
+    local screenGui = Instance.new("ScreenGui")
 
-        ResetOnSpawn = false,
+    screenGui.Name = "PenyaHubZ"
 
-        ZIndexBehavior =
-            Enum.ZIndexBehavior.Sibling
-    }, PlayerGui)
+    screenGui.ResetOnSpawn = false
+
+    screenGui.ZIndexBehavior =
+        Enum.ZIndexBehavior.Sibling
+
+    screenGui.Parent = playerGui
 
     --------------------------------------------------
-    -- P Button
+    -- Open Button
     --------------------------------------------------
 
-    openButton = create("TextButton", {
+    local openButton = Instance.new("TextButton")
 
-        Name = "OpenButton",
+    openButton.Name = "OpenButton"
 
-        AnchorPoint =
-            Vector2.new(1, 0),
+    openButton.Size =
+        UDim2.fromOffset(54, 54)
 
-        Position =
-            UDim2.new(1, -25, 0, 25),
+    openButton.Position =
+        UDim2.new(1, -74, 0, 24)
 
-        Size =
-            UDim2.fromOffset(52, 52),
+    openButton.BackgroundColor3 =
+        Theme.Colors.PurpleDark
 
-        BackgroundColor3 =
-            Theme.Colors.Purple,
+    openButton.BorderSizePixel = 0
 
-        BorderSizePixel = 0,
+    openButton.Text = "P"
 
-        Font =
-            Theme.Fonts.Black,
+    openButton.TextColor3 =
+        Theme.Colors.Text
 
-        Text = "P",
+    openButton.Font =
+        Theme.Fonts.Black
 
-        TextColor3 =
-            Color3.new(1, 1, 1),
+    openButton.TextSize = 28
 
-        TextSize = 27,
+    openButton.AutoButtonColor = false
 
-        AutoButtonColor = false
+    openButton.Parent = screenGui
 
-    }, screenGui)
-
-    addCorner(openButton, 15)
-    addStroke(openButton)
-
-    openButton.MouseButton1Click:Connect(function()
-        self:Toggle()
-    end)
+    createCorner(
+        openButton,
+        Theme.Sizes.CornerRadius
+    )
 
     --------------------------------------------------
     -- Main Window
     --------------------------------------------------
 
-    mainWindow = create("Frame", {
+    local mainWindow = Instance.new("Frame")
 
-        Name = "MainWindow",
+    mainWindow.Name = "MainWindow"
 
-        AnchorPoint =
-            Vector2.new(0.5, 0.5),
+    mainWindow.AnchorPoint =
+        Vector2.new(0.5, 0.5)
 
-        Position =
-            UDim2.fromScale(0.5, 0.5),
+    mainWindow.Position =
+        UDim2.fromScale(0.5, 0.5)
 
-        Size =
-            UDim2.fromOffset(0, 0),
+    mainWindow.Size =
+        UDim2.fromOffset(
+            Theme.Sizes.MainWidth,
+            Theme.Sizes.MainHeight
+        )
 
-        BackgroundColor3 =
-            Theme.Colors.Background,
+    mainWindow.BackgroundColor3 =
+        Theme.Colors.Background
 
-        BorderSizePixel = 0,
+    mainWindow.BorderSizePixel = 0
 
-        Visible = false,
+    mainWindow.Visible = false
 
-        ClipsDescendants = true
+    mainWindow.Parent = screenGui
 
-    }, screenGui)
-
-    addCorner(
+    createCorner(
         mainWindow,
         Theme.Sizes.CornerRadius
     )
-
-    addStroke(mainWindow)
 
     --------------------------------------------------
     -- Title
     --------------------------------------------------
 
-    create("TextLabel", {
+    local title = createLabel(
+        mainWindow,
+        "PenyaHubZ",
+        UDim2.new(1, -30, 0, 38),
+        UDim2.fromOffset(15, 8)
+    )
 
-        Name = "Title",
+    title.Font =
+        Theme.Fonts.Bold
 
-        BackgroundTransparency = 1,
-
-        Position =
-            UDim2.fromOffset(18, 12),
-
-        Size =
-            UDim2.new(1, -36, 0, 32),
-
-        Font =
-            Theme.Fonts.Black,
-
-        Text = "PenyaHubZ",
-
-        TextColor3 =
-            Theme.Colors.Text,
-
-        TextSize = 20,
-
-        TextXAlignment =
-            Enum.TextXAlignment.Left
-
-    }, mainWindow)
+    title.TextSize = 20
 
     --------------------------------------------------
     -- Sidebar
     --------------------------------------------------
 
-    sidebar = create("Frame", {
+    local sidebar = Instance.new("Frame")
 
-        Name = "Sidebar",
+    sidebar.Name = "Sidebar"
 
-        Position =
-            UDim2.fromOffset(12, 55),
+    sidebar.Size =
+        UDim2.new(
+            0,
+            Theme.Sizes.SidebarWidth,
+            1,
+            -56
+        )
 
-        Size =
-            UDim2.fromOffset(
-                Theme.Sizes.SidebarWidth,
-                330
-            ),
+    sidebar.Position =
+        UDim2.fromOffset(
+            0,
+            50
+        )
 
-        BackgroundColor3 =
-            Theme.Colors.Panel,
+    sidebar.BackgroundColor3 =
+        Theme.Colors.Panel
 
-        BorderSizePixel = 0
+    sidebar.BorderSizePixel = 0
 
-    }, mainWindow)
+    sidebar.Parent = mainWindow
 
-    addCorner(sidebar, 12)
+    createCorner(
+        sidebar,
+        Theme.Sizes.SmallCornerRadius
+    )
+
+    local tabList =
+        Instance.new("UIListLayout")
+
+    tabList.Padding =
+        UDim.new(0, 8)
+
+    tabList.HorizontalAlignment =
+        Enum.HorizontalAlignment.Center
+
+    tabList.SortOrder =
+        Enum.SortOrder.LayoutOrder
+
+    tabList.Parent = sidebar
+
+    local tabPadding =
+        Instance.new("UIPadding")
+
+    tabPadding.PaddingTop =
+        UDim.new(0, 10)
+
+    tabPadding.Parent = sidebar
 
     --------------------------------------------------
     -- Content
     --------------------------------------------------
 
-    content = create("Frame", {
+    local content = Instance.new("Frame")
 
-        Name = "Content",
+    content.Name = "Content"
 
-        Position =
-            UDim2.fromOffset(197, 55),
+    content.Size =
+        UDim2.new(
+            1,
+            -Theme.Sizes.SidebarWidth - 15,
+            1,
+            -56
+        )
 
-        Size =
-            UDim2.new(
-                1,
-                -209,
-                1,
-                -67
-            ),
+    content.Position =
+        UDim2.new(
+            0,
+            Theme.Sizes.SidebarWidth + 10,
+            0,
+            50
+        )
 
-        BackgroundColor3 =
-            Theme.Colors.Panel,
+    content.BackgroundColor3 =
+        Theme.Colors.Panel
 
-        BorderSizePixel = 0,
+    content.BorderSizePixel = 0
 
-        ClipsDescendants = true
+    content.Parent = mainWindow
 
-    }, mainWindow)
-
-    addCorner(content, 12)
-
-    --------------------------------------------------
-    -- Build
-    --------------------------------------------------
-
-    createTabs()
-
-    setContent(
-        TAB_NAMES[1]
+    createCorner(
+        content,
+        Theme.Sizes.SmallCornerRadius
     )
 
-end
+    --------------------------------------------------
+    -- Content Title
+    --------------------------------------------------
 
---------------------------------------------------
--- Init
---------------------------------------------------
+    local pageTitle = createLabel(
+        content,
+        "CHANGE LOGS",
+        UDim2.new(1, -30, 0, 32),
+        UDim2.fromOffset(15, 10)
+    )
 
-function UI:Init(context)
+    pageTitle.Font =
+        Theme.Fonts.Bold
 
-    if not context then
+    pageTitle.TextSize = 17
 
-        warn(
-            "[PenyaHubZ] UI context is missing."
+    --------------------------------------------------
+    -- Function Container
+    --------------------------------------------------
+
+    local functionContainer =
+        Instance.new("ScrollingFrame")
+
+    functionContainer.Name =
+        "FunctionContainer"
+
+    functionContainer.Size =
+        UDim2.new(
+            1,
+            -20,
+            1,
+            -55
         )
 
-        return false
+    functionContainer.Position =
+        UDim2.fromOffset(10, 50)
+
+    functionContainer.BackgroundTransparency = 1
+
+    functionContainer.BorderSizePixel = 0
+
+    functionContainer.ScrollBarThickness = 3
+
+    functionContainer.ScrollBarImageColor3 =
+        Theme.Colors.Purple
+
+    functionContainer.CanvasSize =
+        UDim2.fromOffset(0, 0)
+
+    functionContainer.AutomaticCanvasSize =
+        Enum.AutomaticSize.Y
+
+    functionContainer.Parent = content
+
+    local functionList =
+        Instance.new("UIListLayout")
+
+    functionList.Padding =
+        UDim.new(0, 7)
+
+    functionList.SortOrder =
+        Enum.SortOrder.LayoutOrder
+
+    functionList.Parent =
+        functionContainer
+
+    local functionPadding =
+        Instance.new("UIPadding")
+
+    functionPadding.PaddingTop =
+        UDim.new(0, 2)
+
+    functionPadding.PaddingBottom =
+        UDim.new(0, 5)
+
+    functionPadding.Parent =
+        functionContainer
+
+    --------------------------------------------------
+    -- Clear Functions
+    --------------------------------------------------
+
+    local function clearFunctions()
+
+        for _, child in ipairs(
+            functionContainer:GetChildren()
+        ) do
+
+            if child:IsA("Frame") then
+                child:Destroy()
+            end
+
+        end
 
     end
 
-    Theme =
-        context.Theme
+    --------------------------------------------------
+    -- Show Tab
+    --------------------------------------------------
 
-    Animations =
-        context.Animations
+    local function showTab(tabName)
 
-    if not Theme or not Animations then
+        pageTitle.Text = tabName
 
-        warn(
-            "[PenyaHubZ] UI dependencies are missing."
-        )
+        clearFunctions()
 
-        return false
+        if tabName == "MINI GAMES" then
+
+            for index, gameName in ipairs(
+                MINI_GAME_NAMES
+            ) do
+
+                createFunctionButton(
+                    functionContainer,
+                    gameName,
+                    index
+                )
+
+            end
+
+        else
+
+            local description = Instance.new("TextLabel")
+
+            description.Size =
+                UDim2.new(1, -30, 0, 80)
+
+            description.Position =
+                UDim2.fromOffset(15, 55)
+
+            description.BackgroundTransparency = 1
+
+            description.Text =
+                "Functions for " .. tabName
+
+            description.TextColor3 =
+                Theme.Colors.TextDim
+
+            description.Font =
+                Theme.Fonts.Medium
+
+            description.TextSize = 14
+
+            description.TextXAlignment =
+                Enum.TextXAlignment.Left
+
+            description.TextYAlignment =
+                Enum.TextYAlignment.Top
+
+            description.TextWrapped = true
+
+            description.Parent =
+                functionContainer
+
+        end
 
     end
 
-    self:Create()
+    --------------------------------------------------
+    -- Create Tabs
+    --------------------------------------------------
+
+    for index, tabName in ipairs(TAB_NAMES) do
+
+        local tab =
+            createTabButton(
+                sidebar,
+                tabName,
+                index
+            )
+
+        tab.MouseButton1Click:Connect(function()
+
+            showTab(tabName)
+
+            for _, otherTab in ipairs(
+                sidebar:GetChildren()
+            ) do
+
+                if otherTab:IsA("TextButton") then
+
+                    Animations:Color(
+                        otherTab,
+                        Theme.Colors.Panel,
+                        Animations.Duration.Fast
+                    )
+
+                    Animations:TextColor(
+                        otherTab,
+                        Theme.Colors.TextDim,
+                        Animations.Duration.Fast
+                    )
+
+                end
+
+            end
+
+            Animations:Color(
+                tab,
+                Theme.Colors.PurpleDark,
+                Animations.Duration.Fast
+            )
+
+            Animations:TextColor(
+                tab,
+                Theme.Colors.Text,
+                Animations.Duration.Fast
+            )
+
+        end)
+
+        if index == 1 then
+
+            Animations:Color(
+                tab,
+                Theme.Colors.PurpleDark,
+                Animations.Duration.Fast
+            )
+
+            Animations:TextColor(
+                tab,
+                Theme.Colors.Text,
+                Animations.Duration.Fast
+            )
+
+        end
+
+    end
+
+    --------------------------------------------------
+    -- Open / Close
+    --------------------------------------------------
+
+    local opened = false
+
+    openButton.MouseButton1Click:Connect(function()
+
+        opened = not opened
+
+        if opened then
+
+            mainWindow.Visible = true
+
+            mainWindow.Size =
+                UDim2.fromOffset(0, 0)
+
+            Animations:OpenWindow(
+                mainWindow,
+                UDim2.fromOffset(
+                    Theme.Sizes.MainWidth,
+                    Theme.Sizes.MainHeight
+                )
+            )
+
+        else
+
+            local tween =
+                Animations:CloseWindow(
+                    mainWindow
+                )
+
+            if tween then
+
+                tween.Completed:Connect(function()
+
+                    if not opened then
+                        mainWindow.Visible = false
+                    end
+
+                end)
+
+            end
+
+        end
+
+    end)
+
+    --------------------------------------------------
+    -- Initial Page
+    --------------------------------------------------
+
+    showTab("CHANGE LOGS")
+
+    print("[PenyaHubZ] UI initialized.")
 
     return true
 end
